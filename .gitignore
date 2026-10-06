@@ -1,0 +1,47 @@
+# Android Studio
+.idea/
+*.iml
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Kotlin
+.kotlin/
+
+# Local configuration
+local.properties
+
+# Generated files
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Gradle generated/cache files
+gradle/wrapper/caches/
+gradle/wrapper/dists/
+gradle/wrapper/daemon/
+gradle/wrapper/**/*.profile
+
+# Gradle downloaded distributions
+gradle/wrapper/wrapper/
+
+# Additional Gradle generated files
+gradle/wrapper/native/
+gradle/wrapper/tmp/
+gradle/wrapper/android/
+gradle/wrapper/*.lock
+gradle/wrapper/*-fileevents.dll
+gradle/wrapper/*-fileevents.dll.lock
+
+# More Gradle temporary/generated files
+gradle/wrapper/.tmp/
+gradle/gradle/
+
+# Gradle build scan data
+gradle/wrapper/build-scan-data/
