@@ -1,4 +1,4 @@
-# Level Up — Android RPG Fitness & Habit Tracker
+# Level Up — Fitness & Habit Tracker
 
 > "Complete your quests. Build your streak. Level up."
 
