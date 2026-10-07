@@ -9,14 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.levelup.app.data.repository.LevelUpRepository
 import com.levelup.app.ui.MainNavGraph
 import com.levelup.app.ui.screens.onboarding.OnboardingScreen
 import com.levelup.app.ui.theme.Background
 import com.levelup.app.ui.theme.LevelUpTheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -25,6 +24,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var repository: LevelUpRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -39,7 +39,6 @@ class MainActivity : ComponentActivity() {
 private fun AppRoot(repository: LevelUpRepository) {
     // Determine whether onboarding has been completed
     var onboardingComplete by remember { mutableStateOf<Boolean?>(null) }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         onboardingComplete = repository.isOnboardingComplete()

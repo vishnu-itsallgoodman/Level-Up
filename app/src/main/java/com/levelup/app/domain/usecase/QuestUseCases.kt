@@ -9,8 +9,8 @@ import javax.inject.Inject
 
 /**
  * Toggles a workout quest's completion state for the given date.
- * XP is awarded/reversed on toggle. Lifetime quest count & lifetime amount
- * increment at most ONCE per quest per calendar date (idempotent).
+ * XP is awarded/reversed on toggle. Daily and lifetime statistics
+ * are derived directly from progress records.
  */
 class ToggleWorkoutUseCase @Inject constructor(
     private val repository: LevelUpRepository
@@ -27,7 +27,6 @@ class ToggleWorkoutUseCase @Inject constructor(
 
         val reward = workout.xpReward.coerceAtMost(50)
         val nowCompleted = !existing.completed
-        val wasEverCompleted = existing.everCompleted
 
         val xpDelta = when {
             nowCompleted && !existing.xpAwarded -> reward
@@ -39,16 +38,9 @@ class ToggleWorkoutUseCase @Inject constructor(
             existing.copy(
                 completed = nowCompleted,
                 xpAwarded = nowCompleted,
-                everCompleted = wasEverCompleted || nowCompleted
+                everCompleted = existing.everCompleted || nowCompleted
             )
         )
-
-        // Increment lifetime workout amount & quest count only on the FIRST completion for this date
-        if (nowCompleted && !wasEverCompleted) {
-            val newLifetime = maxOf(0, workout.lifetimeAmount + workout.target)
-            repository.upsertWorkout(workout.copy(lifetimeAmount = newLifetime))
-            repository.incrementQuestsCompleted()
-        }
 
         if (xpDelta != 0) {
             repository.addXp(xpDelta)
@@ -60,8 +52,8 @@ class ToggleWorkoutUseCase @Inject constructor(
 
 /**
  * Toggles a habit's completion for the given date.
- * XP is awarded/reversed on toggle. Lifetime quest count increments
- * at most ONCE per habit per calendar date (idempotent).
+ * XP is awarded/reversed on toggle. Daily and lifetime statistics
+ * are derived directly from progress records.
  */
 class ToggleHabitUseCase @Inject constructor(
     private val repository: LevelUpRepository
@@ -75,7 +67,6 @@ class ToggleHabitUseCase @Inject constructor(
 
         val reward = habit.xpReward.coerceAtMost(50)
         val nowComplete = !existing.completed
-        val wasEverCompleted = existing.everCompleted
 
         val xpDelta = when {
             nowComplete && !existing.xpAwarded -> reward
@@ -87,14 +78,9 @@ class ToggleHabitUseCase @Inject constructor(
             existing.copy(
                 completed = nowComplete,
                 xpAwarded = nowComplete,
-                everCompleted = wasEverCompleted || nowComplete
+                everCompleted = existing.everCompleted || nowComplete
             )
         )
-
-        // Increment lifetime quest count only on the FIRST completion for this date
-        if (nowComplete && !wasEverCompleted) {
-            repository.incrementQuestsCompleted()
-        }
 
         if (xpDelta != 0) {
             repository.addXp(xpDelta)
@@ -106,7 +92,7 @@ class ToggleHabitUseCase @Inject constructor(
 
 /**
  * Checks whether all active quests for a date are done and marks the day complete.
- * Also handles streak updates and idempotent lifetime days completed count.
+ * Also handles streak updates and daily record state.
  */
 class CheckDayCompletionUseCase @Inject constructor(
     private val repository: LevelUpRepository
@@ -115,12 +101,11 @@ class CheckDayCompletionUseCase @Inject constructor(
         val snapshot = repository.buildDailySnapshot(date)
         val totalActive = snapshot.workouts.size + snapshot.habits.size
         val allDone  = totalActive > 0 &&
-                       snapshot.workouts.all { it.xpAwarded } &&
-                       snapshot.habits.all { it.xpAwarded }
+                       snapshot.workouts.all { it.completed } &&
+                       snapshot.habits.all { it.completed }
 
         val record   = repository.getOrCreateDailyRecord(date)
         val wasAlreadyComplete = record.dayCompleted
-        val wasEverCompleted = record.everCompleted
 
         if (allDone && !wasAlreadyComplete) {
             repository.upsertDailyRecord(
@@ -129,10 +114,6 @@ class CheckDayCompletionUseCase @Inject constructor(
                     everCompleted = true
                 )
             )
-
-            if (!wasEverCompleted) {
-                repository.incrementDaysCompleted()
-            }
 
             // Award day-completion bonus XP
             repository.addXp(com.levelup.app.domain.model.XpConfig.XP_DAILY_COMPLETE_BONUS)

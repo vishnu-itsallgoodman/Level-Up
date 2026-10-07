@@ -1,3 +1,15 @@
 <resources>
-    <style name="Theme.LevelUp" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Base Application Theme -->
+    <style name="Theme.LevelUp" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
+    </style>
+
+    <!-- Splash Screen Theme (Android 12+ / SplashScreen API) -->
+    <style name="Theme.LevelUp.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.LevelUp</item>
+    </style>
 </resources>

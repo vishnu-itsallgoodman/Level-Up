@@ -17,12 +17,6 @@ interface UserProgressDao {
 
     @Query("UPDATE user_progress SET totalXp = MAX(0, totalXp + :xp) WHERE id = 1")
     suspend fun addXp(xp: Int)
-
-    @Query("UPDATE user_progress SET lifetimeQuestsCompleted = MAX(0, lifetimeQuestsCompleted + :delta) WHERE id = 1")
-    suspend fun addQuestsCompleted(delta: Int)
-
-    @Query("UPDATE user_progress SET lifetimeDaysCompleted = MAX(0, lifetimeDaysCompleted + :delta) WHERE id = 1")
-    suspend fun addDaysCompleted(delta: Int)
 }
 
 // ─── WorkoutDao ──────────────────────────────────────────────────────────────
@@ -84,6 +78,9 @@ interface DailyRecordDao {
     @Query("SELECT * FROM daily_records WHERE date = :date")
     suspend fun getByDate(date: String): DailyRecordEntity?
 
+    @Query("SELECT COUNT(*) FROM daily_records WHERE dayCompleted = 1")
+    suspend fun getTotalCompletedDaysCount(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: DailyRecordEntity)
 
@@ -106,6 +103,15 @@ interface WorkoutProgressDao {
     @Query("SELECT * FROM workout_progress WHERE date = :date AND workoutId = :workoutId")
     suspend fun getOne(date: String, workoutId: Long): WorkoutProgressEntity?
 
+    @Query("SELECT COUNT(*) FROM workout_progress WHERE date = :date AND completed = 1")
+    suspend fun getCompletedCountForDate(date: String): Int
+
+    @Query("SELECT COUNT(*) FROM workout_progress WHERE completed = 1")
+    suspend fun getTotalCompletedCount(): Int
+
+    @Query("SELECT COUNT(*) FROM workout_progress WHERE workoutId = :workoutId AND completed = 1")
+    suspend fun getCompletedCountForWorkout(workoutId: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: WorkoutProgressEntity)
 }
@@ -121,6 +127,12 @@ interface HabitProgressDao {
 
     @Query("SELECT * FROM habit_progress WHERE date = :date AND habitId = :habitId")
     suspend fun getOne(date: String, habitId: Long): HabitProgressEntity?
+
+    @Query("SELECT COUNT(*) FROM habit_progress WHERE date = :date AND completed = 1")
+    suspend fun getCompletedCountForDate(date: String): Int
+
+    @Query("SELECT COUNT(*) FROM habit_progress WHERE completed = 1")
+    suspend fun getTotalCompletedCount(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: HabitProgressEntity)

@@ -4,6 +4,8 @@ import com.levelup.app.data.database.*
 import com.levelup.app.domain.model.*
 import com.levelup.app.utils.DateUtils
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,17 +52,31 @@ class LevelUpRepository @Inject constructor(
     private val achievementDao: AchievementDao
 ) {
     // ── User progress ─────────────────────────────────────────────────────────
-    fun observeUserProgress(): Flow<UserProgressEntity?> = userProgressDao.observe()
+    fun observeUserProgress(): Flow<UserProgressEntity?> =
+        combine(
+            userProgressDao.observe(),
+            workoutProgressDao.observeByDate(DateUtils.today()),
+            habitProgressDao.observeByDate(DateUtils.today()),
+            dailyRecordDao.observeAll()
+        ) { up, _, _, _ ->
+            if (up == null) null
+            else {
+                val totalQuests = workoutProgressDao.getTotalCompletedCount() + habitProgressDao.getTotalCompletedCount()
+                val totalDays = dailyRecordDao.getTotalCompletedDaysCount()
+                up.copy(lifetimeQuestsCompleted = totalQuests, lifetimeDaysCompleted = totalDays)
+            }
+        }
 
-    suspend fun getUserProgress(): UserProgressEntity =
-        userProgressDao.get() ?: UserProgressEntity().also { userProgressDao.upsert(it) }
+    suspend fun getUserProgress(): UserProgressEntity {
+        val up = userProgressDao.get() ?: UserProgressEntity().also { userProgressDao.upsert(it) }
+        val totalQuests = workoutProgressDao.getTotalCompletedCount() + habitProgressDao.getTotalCompletedCount()
+        val totalDays = dailyRecordDao.getTotalCompletedDaysCount()
+        return up.copy(lifetimeQuestsCompleted = totalQuests, lifetimeDaysCompleted = totalDays)
+    }
 
     suspend fun addXp(xp: Int) {
         userProgressDao.addXp(xp)
     }
-
-    suspend fun incrementQuestsCompleted() { userProgressDao.addQuestsCompleted(1) }
-    suspend fun incrementDaysCompleted()   { userProgressDao.addDaysCompleted(1) }
 
     suspend fun upsertUserProgress(entity: UserProgressEntity) {
         userProgressDao.upsert(entity)
@@ -76,12 +92,32 @@ class LevelUpRepository @Inject constructor(
     }
 
     // ── Workouts ──────────────────────────────────────────────────────────────
-    fun observeWorkouts(): Flow<List<WorkoutEntity>> = workoutDao.observeAll()
+    fun observeWorkouts(): Flow<List<WorkoutEntity>> =
+        combine(
+            workoutDao.observeAll(),
+            workoutProgressDao.observeByDate(DateUtils.today())
+        ) { list, _ ->
+            list.map { w ->
+                val count = workoutProgressDao.getCompletedCountForWorkout(w.id)
+                w.copy(lifetimeAmount = count * w.target)
+            }
+        }
+
     fun observeEnabledWorkouts(): Flow<List<WorkoutEntity>> = workoutDao.observeEnabled()
 
-    suspend fun getWorkouts(): List<WorkoutEntity> = workoutDao.getAll()
+    suspend fun getWorkouts(): List<WorkoutEntity> {
+        val list = workoutDao.getAll()
+        return list.map { w ->
+            val count = workoutProgressDao.getCompletedCountForWorkout(w.id)
+            w.copy(lifetimeAmount = count * w.target)
+        }
+    }
 
-    suspend fun getWorkoutById(id: Long): WorkoutEntity? = workoutDao.getById(id)
+    suspend fun getWorkoutById(id: Long): WorkoutEntity? {
+        val w = workoutDao.getById(id) ?: return null
+        val count = workoutProgressDao.getCompletedCountForWorkout(w.id)
+        return w.copy(lifetimeAmount = count * w.target)
+    }
 
     suspend fun upsertWorkout(entity: WorkoutEntity): Long = workoutDao.upsert(entity)
 
@@ -322,8 +358,6 @@ class LevelUpRepository @Inject constructor(
                 val w = workouts[wp.workoutId]
                 if (w != null) {
                     xpToRemove += w.xpReward
-                    val newLifetime = maxOf(0, w.lifetimeAmount - w.target)
-                    workoutDao.upsert(w.copy(lifetimeAmount = newLifetime))
                 }
             }
             workoutProgressDao.upsert(wp.copy(completed = false, xpAwarded = false))
